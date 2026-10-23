@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f5f4f0;
+  --color-ink: #0c0c0c;
+  --color-muted: #6f6f6a;
+  --color-line: #e3e1db;
+  --color-card: #ffffff;
+  --color-acid: #d7ff3a;
+  --color-danger: #e5484d;
+  --color-warn: #f5a524;
+  --color-ok: #2fa56b;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+  }
+  /* Evita el zoom automático de iOS al enfocar campos */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
