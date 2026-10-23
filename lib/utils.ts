@@ -1,4 +1,3 @@
-import { IMAGE_BUCKET, SUPABASE_URL } from "@/lib/env";
 import type { Product, ProductStatus, PublicProduct, Settings } from "@/lib/types";
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -9,8 +8,9 @@ export const DEFAULT_SETTINGS: Settings = {
   show_prices: true,
 };
 
-export function imageUrl(path: string) {
-  return `${SUPABASE_URL}/storage/v1/object/public/${IMAGE_BUCKET}/${path}`;
+/** Las fotos se guardan como URL completas de Vercel Blob. */
+export function imageUrl(url: string) {
+  return url;
 }
 
 const priceFormatter = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });

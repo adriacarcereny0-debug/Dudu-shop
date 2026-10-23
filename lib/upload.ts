@@ -1,7 +1,4 @@
-import { IMAGE_BUCKET } from "@/lib/env";
-import { createClient } from "@/lib/supabase/client";
-
-const MAX_SIDE = 1600;
+const MAX_SIDE = 1440;
 const QUALITY = 0.82;
 const PASSTHROUGH = ["image/jpeg", "image/png", "image/webp", "image/avif"];
 
@@ -37,24 +34,15 @@ async function compress(file: File): Promise<Blob> {
   return jpeg;
 }
 
-const EXTENSION: Record<string, string> = {
-  "image/webp": "webp",
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/avif": "avif",
-};
-
+/** Sube la foto y devuelve su ruta pública (/img/<id>). */
 export async function uploadImage(file: File): Promise<string> {
   const blob = await compress(file);
-  const path = `${crypto.randomUUID()}.${EXTENSION[blob.type] ?? "jpg"}`;
-  const { error } = await createClient()
-    .storage.from(IMAGE_BUCKET)
-    .upload(path, blob, { contentType: blob.type, cacheControl: "31536000", upsert: false });
-  if (error) throw new Error("No se pudo subir la foto. Revisa tu conexión.");
-  return path;
-}
-
-export async function deleteUploadedImages(paths: string[]) {
-  if (paths.length === 0) return;
-  await createClient().storage.from(IMAGE_BUCKET).remove(paths);
+  const body = new FormData();
+  body.append("file", blob);
+  const response = await fetch("/api/images", { method: "POST", body }).catch(() => null);
+  if (!response?.ok) {
+    if (response?.status === 401) throw new Error("Tu sesión ha caducado. Vuelve a iniciar sesión.");
+    throw new Error("No se pudo subir la foto. Revisa tu conexión.");
+  }
+  return ((await response.json()) as { url: string }).url;
 }

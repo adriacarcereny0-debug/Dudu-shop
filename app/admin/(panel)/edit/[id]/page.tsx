@@ -1,19 +1,12 @@
 import { notFound } from "next/navigation";
-import { getCategories } from "@/lib/admin-data";
-import { createClient } from "@/lib/supabase/server";
-import type { Product } from "@/lib/types";
+import { requireAdminPage } from "@/lib/auth";
+import { getCategories, getProduct } from "@/lib/data";
 import { ProductForm } from "../../product-form";
 
 export default async function EditProductPage({ params }: PageProps<"/admin/edit/[id]">) {
+  await requireAdminPage();
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-
-  const supabase = await createClient();
-  const [{ data }, categories] = await Promise.all([
-    supabase.from("products").select("*").eq("id", id).maybeSingle(),
-    getCategories(),
-  ]);
-  if (!data) notFound();
-
-  return <ProductForm key={data.id} product={data as Product} categories={categories} />;
+  const [product, categories] = await Promise.all([getProduct(id), getCategories()]);
+  if (!product) notFound();
+  return <ProductForm key={product.id} product={product} categories={categories} />;
 }

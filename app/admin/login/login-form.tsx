@@ -9,23 +9,12 @@ export function LoginForm() {
   return (
     <form action={action} className="mt-10 space-y-4">
       <label className="block">
-        <span className="text-sm font-semibold">Email</span>
-        <input
-          name="email"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          defaultValue={state?.email}
-          required
-          className="mt-1.5 h-14 w-full rounded-2xl border border-line bg-card px-4 outline-none focus:border-ink"
-        />
-      </label>
-      <label className="block">
         <span className="text-sm font-semibold">Contraseña</span>
         <input
           name="password"
           type="password"
           autoComplete="current-password"
+          autoFocus
           required
           className="mt-1.5 h-14 w-full rounded-2xl border border-line bg-card px-4 outline-none focus:border-ink"
         />

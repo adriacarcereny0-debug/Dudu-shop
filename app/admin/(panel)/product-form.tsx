@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { createProduct, deleteProduct, updateProduct } from "@/app/admin/actions";
+import { createProduct, deleteProduct, discardImages, updateProduct } from "@/app/admin/actions";
 import {
   ArrowUpIcon,
   CameraIcon,
@@ -18,7 +18,7 @@ import {
 } from "@/components/icons";
 import { useToast } from "@/components/toast";
 import type { Product, ProductInput } from "@/lib/types";
-import { deleteUploadedImages, uploadImage } from "@/lib/upload";
+import { uploadImage } from "@/lib/upload";
 import { cn, imageUrl } from "@/lib/utils";
 import { StatusPicker } from "./product-list";
 
@@ -153,7 +153,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
   function removeImage(path: string) {
     update({ images: form.images.filter((p) => p !== path) });
     // En un producto nuevo la foto aún no está guardada: se borra ya. Al editar, se borra al guardar.
-    if (!product) void deleteUploadedImages([path]);
+    if (!product) void discardImages([path]);
   }
 
   function makeCover(path: string) {

@@ -4,73 +4,64 @@ Catálogo online rápido y pensado para el móvil, para compartir por Instagram 
 
 - **Catálogo público** (`/`): fotos grandes, buscador, filtros por categoría, etiquetas *Nuevo*, *Reservado* y *Agotado*, y precio o «Precio a consultar».
 - **Ficha de producto** (`/p/…`): galería, elección de talla (se añade al mensaje de WhatsApp) y botón para compartir. Cada prenda tiene su propio enlace con vista previa (foto y nombre) en WhatsApp e Instagram.
-- **Panel de administración** (`/admin`): pensado para usarlo desde el móvil. Puedes hacer fotos con la cámara o elegirlas de la galería, editar, duplicar, ocultar, eliminar y ordenar prendas, cambiar unidades y estado con un toque, y configurar la tienda. Todo se guarda solo.
+- **Panel de administración** (`/admin`): pensado para el móvil. Fotos desde la cámara o la galería; editar, duplicar, ocultar, eliminar y ordenar prendas; unidades y estado con un toque; ajustes de la tienda. Todo se guarda solo.
 
-Tecnología: Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (base de datos, login y fotos) · Vercel.
+Tecnología: Next.js 16 · TypeScript · Tailwind CSS 4 · Postgres (Neon) · Vercel. Sin servicios externos de login ni de almacenamiento: solo hace falta una base de datos Postgres.
 
 ---
 
-## 1. Crear el proyecto en Supabase
+## Variables de entorno
 
-1. Entra en [supabase.com](https://supabase.com), crea una cuenta y pulsa **New project**. Elige una región cercana (por ejemplo, *West EU*).
-2. Cuando esté listo, ve a **SQL Editor → New query**, pega el contenido de [`supabase/migrations/20261023000000_init.sql`](supabase/migrations/20261023000000_init.sql) y pulsa **Run**.
-   Esto crea las tablas, las políticas de seguridad (RLS) y el almacén de fotos `product-images`.
-3. Ve a **Authentication → Sign In / Providers** y **desactiva «Allow new users to sign up»**. Así nadie puede registrarse por su cuenta.
+| Variable              | Qué es                                                                    |
+| --------------------- | ------------------------------------------------------------------------- |
+| `DATABASE_URL`        | Cadena de conexión de Postgres (Neon → *Connection string*). **Secreta.** |
+| `ADMIN_PASSWORD_HASH` | Contraseña del panel, cifrada. Se genera con `npm run hash-password`.     |
+| `SESSION_SECRET`      | Texto aleatorio largo (≥ 32 caracteres) para firmar la sesión. **Secreta.** |
 
-## 2. Crear el administrador
+Ninguna lleva el prefijo `NEXT_PUBLIC_`: ninguna llega nunca al navegador.
 
-1. **Authentication → Users → Add user → Create new user**. Escribe tu email y una contraseña segura y marca **Auto Confirm User**.
-2. Dale permisos de administrador. En **SQL Editor** ejecuta (cambiando el email):
+## Puesta en marcha
 
-   ```sql
-   insert into public.admins (user_id)
-   select id from auth.users where email = 'tu@email.com';
+1. **Base de datos.** Crea una base de datos Postgres (por ejemplo en [neon.tech](https://neon.tech), plan gratuito) y copia su *connection string*.
+2. **Tablas.** Desde tu ordenador:
+   ```bash
+   npm install
+   DATABASE_URL="postgresql://…" npm run db:migrate
    ```
+   (O pega el contenido de [`db/schema.sql`](db/schema.sql) en el *SQL Editor* de Neon.)
+3. **Contraseña del panel.**
+   ```bash
+   npm run hash-password -- "una-contraseña-larga"
+   ```
+   Copia el resultado (`scrypt:…`) en `ADMIN_PASSWORD_HASH`.
+4. **Secreto de sesión.** `openssl rand -base64 48` → `SESSION_SECRET`.
+5. **Vercel.** Importa el repositorio de GitHub en [vercel.com](https://vercel.com) → *Add New → Project*, añade las tres variables en *Environment Variables* y pulsa *Deploy*. Cada `git push` a la rama de producción vuelve a publicar.
 
-Solo los usuarios de la tabla `admins` pueden modificar datos; estar registrado no es suficiente. Para quitarle el acceso a alguien: `delete from public.admins where user_id = '…';`.
+Después entra en `https://tu-dominio/admin`, inicia sesión y ve a **Ajustes** (icono de controles) para poner tu WhatsApp, tu Instagram y la frase de bienvenida. Desde ahí puedes copiar el enlace del catálogo para la bio de Instagram.
 
-## 3. Variables de entorno
-
-En Supabase ve a **Project Settings → API** (o **API Keys**) y copia:
-
-| Variable                        | Dónde está                                         |
-| ------------------------------- | -------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Project URL (`https://xxxx.supabase.co`)           |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave **anon** / **publishable** (`sb_publishable_…` o `eyJ…`) |
-
-> ⚠️ Nunca uses la clave **service_role** / **secret**. La app no la necesita.
-> La clave pública puede estar en el navegador: lo que protege los datos son las políticas RLS.
-
-Para trabajar en tu ordenador, copia `.env.example` a `.env.local` y rellénalo.
-
-## 4. Publicar en Vercel
-
-1. Sube este repositorio a GitHub.
-2. En [vercel.com](https://vercel.com) → **Add New → Project** → importa el repositorio.
-3. En **Environment Variables** añade las dos variables del paso 3.
-4. Pulsa **Deploy**. En un par de minutos tendrás una dirección como `https://dudu-shop.vercel.app`.
-5. (Opcional) En **Settings → Domains** puedes conectar un dominio propio.
-
-Después entra en `https://tu-dominio/admin`, inicia sesión y ve a **Ajustes** (icono de controles) para poner tu número de WhatsApp, tu Instagram y la frase de bienvenida. Desde ahí puedes copiar el enlace del catálogo para la bio de Instagram.
+**Cambiar la contraseña:** genera un nuevo hash con `npm run hash-password`, sustituye `ADMIN_PASSWORD_HASH` en Vercel y vuelve a desplegar (*Deployments → Redeploy*). Para cerrar todas las sesiones abiertas, cambia también `SESSION_SECRET`.
 
 ## Uso diario
 
-- **Añadir prenda**: botón **Añadir** → *Cámara* o *Galería* → nombre, categoría, tallas… → **Publicar prenda**. Las fotos se reducen en el propio móvil antes de subirse (unos cientos de KB), así que suben rápido.
+- **Añadir prenda**: botón **Añadir** → *Cámara* o *Galería* → nombre, categoría, tallas… → **Publicar prenda**. Las fotos se reducen en el propio móvil antes de subirse (unos 100-300 KB), así que suben rápido.
 - **Unidades**: botones − / + en la lista. Al llegar a 0 la prenda pasa a *Agotado*; si repones, vuelve a *Disponible*.
 - **Estado**: Disponible · Reservado · Agotado.
 - **Ocultar**: botón *Visible / Oculto*. Las prendas ocultas no aparecen en el catálogo.
 - **Ordenar**: flechas ↑ ↓. Las prendas nuevas aparecen arriba.
-- **Duplicar**: crea una copia oculta (con sus propias fotos) para crear variantes rápido.
+- **Duplicar**: crea una copia oculta (con sus propias fotos) para hacer variantes rápido.
 - **Precios**: cada prenda tiene «Mostrar precio». En **Ajustes → Mostrar precios** puedes ocultarlos todos a la vez.
-- **Guardado automático**: al editar una prenda o los ajustes, los cambios se guardan solos (verás «Guardado ✓»). El catálogo público se actualiza al momento.
+- **Guardado automático**: al editar una prenda o los ajustes, los cambios se guardan solos («Guardado ✓») y el catálogo público se actualiza al momento.
 
 ## Seguridad
 
-- **RLS activado en todas las tablas.** El público (y cualquier usuario que no sea administrador) solo puede **leer** la configuración y los productos **publicados**. Crear, editar, borrar y reordenar exige ser administrador (`public.is_admin()`), y lo comprueba la propia base de datos.
-- **Fotos**: el almacén es de lectura pública por URL (necesario para mostrarlas), pero solo el administrador puede subir, cambiar, borrar o listar archivos. Límite de 5 MB y solo formatos de imagen.
-- El panel `/admin` está protegido en tres capas: el proxy de Next.js redirige al login, cada página verifica la sesión y el rol, y cada acción del servidor lo vuelve a comprobar antes de tocar la base de datos.
-- Ninguna clave privada se usa en el proyecto.
-- Nota: cuando un precio está oculto, el catálogo no lo envía al navegador. Aun así, el precio sigue guardado en la fila del producto publicado, así que alguien con conocimientos técnicos podría leerlo con la clave pública. Para un catálogo esto suele ser aceptable; si un precio debe ser secreto, déjalo vacío.
+- **La base de datos solo se usa desde el servidor.** El navegador nunca recibe la cadena de conexión ni puede consultar la base de datos: el catálogo público solo obtiene productos **publicados** (y sin el precio cuando está oculto).
+- **Login seguro**: la contraseña se guarda cifrada con *scrypt*; la sesión es una cookie `httpOnly`, `secure` y firmada (HMAC-SHA256) que caduca a los 30 días. Tras 5 intentos fallidos desde la misma IP, el acceso se bloquea 15 minutos.
+- **Triple comprobación en `/admin`**: el proxy de Next.js redirige al login, cada página del panel comprueba la sesión y cada acción del servidor (crear, editar, borrar, reordenar, subir fotos, ajustes) la vuelve a comprobar antes de tocar la base de datos. Todos los datos se validan en el servidor.
+- **Fotos**: solo el administrador puede subirlas (máx. 2 MB, solo imágenes). Se guardan en la base de datos y se sirven en `/img/<id>` con caché de un año en el CDN de Vercel; al quitar una foto o borrar una prenda, la foto se elimina.
+
+## Capacidad
+
+El plan gratuito de Neon incluye 0,5 GB. Con fotos de ~200 KB caben unas 2.000 fotos (cientos de prendas). Si algún día se queda corto, basta con ampliar el plan de la base de datos.
 
 ## Desarrollo en local
 
@@ -80,15 +71,7 @@ cp .env.example .env.local   # rellena las variables
 npm run dev                  # http://localhost:3000
 ```
 
-Con Docker también puedes levantar Supabase en local (aplica la migración automáticamente):
-
-```bash
-npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,mailpit,postgres-meta
-```
-
-Usa la `API_URL` y la `PUBLISHABLE_KEY` que muestra como variables de entorno, y crea el administrador como en el paso 2 (Studio no se arranca con ese comando; usa `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres` para el SQL y la API de administración de Auth, o quita `studio` de la lista).
-
-Comandos útiles: `npm run build` (compila para producción) y `npm run typecheck`.
+Comandos: `npm run build`, `npm run typecheck`, `npm run db:migrate`, `npm run hash-password -- "…"`.
 
 ## Estructura
 
@@ -96,11 +79,14 @@ Comandos útiles: `npm run build` (compila para producción) y `npm run typechec
 app/
   page.tsx                 Catálogo público
   p/[id]/page.tsx          Ficha de producto
+  img/[id]/route.ts        Sirve las fotos (con caché)
+  api/images/route.ts      Subida de fotos (solo administrador)
   admin/login/             Inicio de sesión
   admin/(panel)/           Panel: lista, nueva prenda, editar, ajustes
   admin/actions.ts         Acciones del servidor (validación + permisos)
 components/                Catálogo, galería, iconos…
-lib/                       Clientes de Supabase, tipos, utilidades, subida de fotos
-proxy.ts                   Protege /admin y refresca la sesión
-supabase/migrations/       Esquema SQL, políticas RLS y almacén de fotos
+lib/                       Base de datos, sesión, tipos, utilidades, subida de fotos
+proxy.ts                   Protege /admin
+db/schema.sql              Esquema de la base de datos
+scripts/                   Migración y generador del hash de la contraseña
 ```
